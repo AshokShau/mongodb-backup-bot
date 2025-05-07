@@ -98,7 +98,7 @@ def extract_mongo_uri(text: str) -> Optional[str]:
 
 def is_valid_backup_file(filename: str) -> bool:
     """Check if file is a valid MongoDB backup."""
-    return filename.endswith((".gz", ".json"))
+    return filename.endswith((".gz", ".json", ".zip"))
 
 async def send_backup_file(
         msg: types.Message,
