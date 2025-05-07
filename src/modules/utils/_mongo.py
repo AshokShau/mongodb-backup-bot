@@ -1,6 +1,8 @@
 import asyncio
+import subprocess
+
 from datetime import datetime
-from typing import Literal, Union
+from typing import Union
 
 from pytdbot import types
 
@@ -43,3 +45,32 @@ async def run_mongodump(uri: str,format_db: str = "gz") -> Union[str, types.Erro
         return types.Error(code=400, message=stderr.decode())
 
     return backup_path
+
+async def run_mongorestore(uri: str, backup_path: str) -> Union[types.Ok, types.Error]:
+    """Execute mongorestore command."""
+    if backup_path.endswith(".gz"):
+        restore_command = [
+            "mongorestore",
+            "--uri", uri,
+            "--archive", backup_path,
+            "--gzip",
+        ]
+    else:
+        restore_command = [
+            "mongorestore",
+            "--uri", uri,
+            "--archive", backup_path,
+        ]
+
+    process = subprocess.Popen(
+        restore_command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True
+    )
+    _, stderr = process.communicate()
+
+    if process.returncode != 0:
+        error_msg = stderr if stderr else "Unknown error"
+        return types.Error(code=400, message=error_msg)
+    return types.Ok()

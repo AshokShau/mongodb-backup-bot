@@ -57,3 +57,16 @@ async def ping_cmd(client: Client, message: types.Message) -> None:
         client.logger.warning(f"Error sending message: {done}")
     return None
 
+@Client.on_message(filters=Filter.command("privacy"))
+async def privacy_handler(_: Client, message: types.Message):
+    await message.reply_text(
+        "🔒 <b>Privacy Policy</b>\n\n"
+        "This bot does <b>not store</b> any of your data.\n"
+        "No logs, no backups, no user tracking.\n\n"
+        "All operations (backup/import) are handled <i>in-memory</i> and deleted after use.\n"
+        "Even the database itself isn’t connected — everything is local.\n\n"
+        "🛠️ <b>Open Source</b>: You can verify this at:\n"
+        "🔗 <a href=\"https://github.com/AshokShau/TgMongoBot\">github.com/AshokShau/TgMongoBot</a>",
+        parse_mode="html",
+        disable_web_page_preview=True
+    )

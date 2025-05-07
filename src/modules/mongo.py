@@ -1,105 +1,135 @@
 import os
 import re
-import subprocess
+
+from typing import Optional, Union
 
 from pytdbot import Client, types
 
-from src.modules.utils import Filter, extract_argument, run_mongodump
+from src.modules.utils import Filter, extract_argument, run_mongodump, run_mongorestore
 
 
 @Client.on_message(filters=Filter.command("mongo"))
 async def mongo_cmd(_: Client, msg: types.Message) -> None:
+    """Handle MongoDB backup/restore commands."""
     args = extract_argument(msg.text)
     if not args:
         await msg.reply_text("❌ Please provide a MongoDB URI.")
         return None
 
-    uri_pattern = r"(mongodb(?:\+srv)?:\/\/[a-zA-Z0-9\-._~:\/?#[\]@!$&'()*+,;=]+)"
-    match = re.search(uri_pattern, args)
-
-    if not match:
+    uri = extract_mongo_uri(args)
+    if not uri:
         await msg.reply_text("❌ Invalid or missing MongoDB URI.")
         return None
 
-    uri = match.group(0)
     flags = args.lower()
 
     if "{import}" in flags:
         return await import_mongo(msg, uri)
 
-    if "{json}" in flags and "{gz}" not in flags:
-        format_db = "json"
-    else:
-        format_db = "gz"
+    await handle_backup_request(msg, uri, flags)
+    return None
 
+
+async def handle_backup_request(msg: types.Message, uri: str, flags: str) -> None:
+    """Handle MongoDB backup requests."""
+    format_db = "json" if "{json}" in flags and "{gz}" not in flags else "gz"
     reply = await msg.reply_text(f"📦 Creating backup in <b>{format_db.upper()}</b> format...")
 
     backup_path = await run_mongodump(uri, format_db=format_db)
     if isinstance(backup_path, types.Error):
         await reply.edit_text(text=f"❌ Backup failed: {backup_path.message}")
-        return None
+        return
 
-    await msg.reply_document(
-        document=types.InputFileLocal(backup_path),
-        caption=f"✅ MongoDB backup complete.\n\n<b>URI:</b> <code>{uri}</code>\n<b>Format:</b> <code>{format_db.upper()}</code>",
-        parse_mode="html",
-    )
+    done = await send_backup_file(msg, uri, format_db, backup_path)
+    cleanup_file(backup_path)
+    if isinstance(done, types.Error):
+        await reply.edit_text(text=f"❌ Backup failed: {done.message}")
 
-    if os.path.exists(backup_path):
-        os.remove(backup_path)
     await reply.delete()
-    return None
 
 
 async def import_mongo(msg: types.Message, target_uri: str) -> None:
+    """Handle MongoDB import requests."""
     reply = await msg.getRepliedMessage() if msg.reply_to_message_id else None
     if not reply or isinstance(reply, types.Error):
         await msg.reply_text("❌ Please reply to a MongoDB backup file.")
-        return None
+        return
 
     if not isinstance(reply.content, types.MessageDocument):
         await msg.reply_text("❌ Please reply to a MongoDB backup file.")
-        return None
+        return
 
     file_name = reply.content.document.file_name
-    if not file_name.endswith(".gz") and not file_name.endswith(".json"):
-        await msg.reply_text("❌ Please reply to a MongoDB backup file.")
-        return None
+    if not is_valid_backup_file(file_name):
+        await msg.reply_text("❌ Please reply to a valid MongoDB backup file (.gz or .json).")
+        return
 
-    await msg.reply_text("📦 Importing MongoDB backup...")
+    await process_import(msg, reply, target_uri)
+
+
+async def process_import(
+        msg: types.Message,
+        reply: types.Message,
+        target_uri: str
+) -> None:
+    """Process the MongoDB import operation."""
+    status_msg = await msg.reply_text("📦 Importing MongoDB backup...")
+
     backup_path = await reply.download()
     if isinstance(backup_path, types.Error):
-        await msg.reply_text(f"❌ Failed to download backup file: {backup_path.message}")
-        return None
+        await status_msg.edit_text(f"❌ Failed to download backup file: {backup_path.message}")
+        return
 
-    path = backup_path.path
+    result = await run_mongorestore(target_uri, backup_path.path)
+    if isinstance(result, types.Error):
+        await status_msg.edit_text(f"❌ MongoDB import failed: {result.message}")
+        return
 
-    if path.endswith(".gz"):
-        restore_command = [
-            "mongorestore",
-            "--uri", target_uri,
-            "--archive", path,
-            "--gzip",
-        ]
-    elif path.endswith(".json"):
-        restore_command = [
-            "mongorestore",
-            "--uri", target_uri,
-            "--archive", path,
-        ]
-    else:
-        await msg.reply_text("❌ Unsupported backup format. Please provide a gzipped or JSON backup.")
-        return None
+    await status_msg.edit_text(f"✅ MongoDB import complete to <code>{sanitize_uri(target_uri)}</code>.")
+    cleanup_file(backup_path.path)
 
-    process = subprocess.Popen(restore_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = process.communicate()
 
-    if process.returncode != 0:
-        await msg.reply_text(f"❌ Import failed: {stderr.decode()}")
-        return None
+def extract_mongo_uri(text: str) -> Optional[str]:
+    """Extract MongoDB URI from text."""
+    uri_pattern = r"(mongodb(?:\+srv)?:\/\/[a-zA-Z0-9\-._~:\/?#[\]@!$&'()*+,;=]+)"
+    match = re.search(uri_pattern, text)
+    return match.group(0) if match else None
 
-    await msg.reply_text(f"✅ MongoDB import complete to <code>{target_uri}</code>.")
-    if os.path.exists(path):
-        os.remove(path)
 
-    return None
+def is_valid_backup_file(filename: str) -> bool:
+    """Check if file is a valid MongoDB backup."""
+    return filename.endswith((".gz", ".json"))
+
+async def send_backup_file(
+        msg: types.Message,
+        uri: str,
+        format_db: str,
+        backup_path: str
+) -> Union[types.Message, types.Error]:
+    """Send the backup file to the user."""
+    return await msg.reply_document(
+        document=types.InputFileLocal(backup_path),
+        caption=(
+            f"✅ MongoDB backup complete.\n\n"
+            f"<b>URI:</b> <code>{sanitize_uri(uri)}</code>\n"
+            f"<b>Format:</b> <code>{format_db.upper()}</code>"
+        ),
+        parse_mode="html",
+    )
+
+
+def sanitize_uri(uri: str) -> str:
+    """Sanitize MongoDB URI for display (hides password)."""
+    if "@" in uri:
+        protocol, rest = uri.split("://", 1)
+        credentials, host = rest.split("@", 1)
+        if ":" in credentials:
+            username = credentials.split(":")[0]
+            return f"{protocol}://{username}:***@{host}"
+    return uri
+
+
+def cleanup_file(file_path: Optional[str]) -> None:
+    """Clean up temporary files."""
+    if file_path and os.path.exists(file_path):
+        os.remove(file_path)
