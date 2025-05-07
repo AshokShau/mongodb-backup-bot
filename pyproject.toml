@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=78.1.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dbbackup"
+version = "0.1.0"
+description = "A Telegram Bot for MongoDB Backup/Import"
+requires-python = ">=3.10"
+dependencies = [
+    "pytdbot>=0.9.2",
+    "python-dotenv>=1.1.0",
+    "tdjson>=1.8.48",
+]
+
+[project.scripts]
+start = "src.__main__:main"
+
+[tool.setuptools]
+packages = ["src"]

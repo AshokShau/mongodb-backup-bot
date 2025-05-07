@@ -1,0 +1,4 @@
+**
+!*.py
+!src/
+!pyproject.toml
