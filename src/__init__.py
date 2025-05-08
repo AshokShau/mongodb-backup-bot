@@ -5,6 +5,7 @@ from datetime import datetime
 
 from pytdbot import Client, types
 
+from src import config
 
 logging.basicConfig(
     level=logging.INFO,
@@ -17,11 +18,7 @@ logging.basicConfig(
 LOGGER = logging.getLogger("Bot")
 
 __version__ = "0.1.0"
-
-from src import config
-
 StartTime = datetime.now()
-
 BACKUP_FOLDER = "./backups"
 
 
