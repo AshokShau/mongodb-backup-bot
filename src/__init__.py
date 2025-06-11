@@ -43,6 +43,7 @@ class Telegram(Client):
             print("❌ mongodump is not installed. Please install MongoDB tools:")
             print("• Arch: yay -S mongodb-tools-bin")
             print("• Ubuntu/Docker: use official .tgz tools from https://www.mongodb.com/try/download/database-tools")
+            raise RuntimeError("mongodump is not installed.")
 
         await super().start()
         os.makedirs(BACKUP_FOLDER, exist_ok=True)

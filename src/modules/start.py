@@ -18,7 +18,7 @@ async def start_cmd(c: Client, message: types.Message):
         "This bot lets you <b>create</b> and <b>import</b> MongoDB backups easily using the <code>/mongo</code> command.\n\n"
         "🛠️ <b>Commands</b>:\n"
         "<code>/mongo &lt;uri&gt; {format}</code> - Create a backup of the given MongoDB URI.\n"
-        "<code>/mongo &lt;uri&gt; {import}</code> - Import a backup (must be used in reply to a .gz or .json file).\n\n"
+        "<code>/mongo &lt;uri&gt; {import}</code> - Import a backup (must be used in reply to a .gz or .zip file).\n\n"
         "📦 <b>Supported Formats</b>:\n"
         "• <code>{gz}</code> — Create a compressed backup in .gz format (default).\n"
         "• <code>{json}</code> — Create a plain JSON format backup.\n\n"
@@ -28,7 +28,7 @@ async def start_cmd(c: Client, message: types.Message):
         "📤 <b>Export Example</b>:\n"
         "<code>/mongo mongodb://localhost:27017 {gz}</code>\n\n"
         "If both <code>{gz}</code> and <code>{json}</code> are given, <code>{gz}</code> will be used.\n\n"
-        "💡 <b>Note:</b> Your MongoDB URI should be valid (with proper credentials if needed).\n\n"
+        "💡 <b>Note:</b> Your MongoDB URI should be valid.\n\n"
         "Made with ❤️ using <b>pytdbot</b>"
     )
 
