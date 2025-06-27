@@ -43,8 +43,7 @@ jobs:
         run: |
           source .venv/bin/activate
           uv pip install -e .
-          
-          # Get all installed packages
+
           ALL_PKGS=$(uv pip list --format=json)
           OUTDATED=$(uv pip list --outdated --format=json)
           VERSION_MAP=$(jq -n --argjson all "$ALL_PKGS" --argjson outdated "$OUTDATED" '
@@ -53,31 +52,17 @@ jobs:
             | add
             | with_entries(.value |= (.version // .latest_version // ""))
           ')
-          
+
           ENCODED_VERS=$(echo "$VERSION_MAP" | base64 -w0)
           echo "versions_b64=${ENCODED_VERS}" >> $GITHUB_OUTPUT
-          
+
           COUNT=$(echo "$OUTDATED" | jq -r 'length')
           echo "count=${COUNT}" >> $GITHUB_OUTPUT
-          
+
           PKG_MD=$(echo "$OUTDATED" | jq -r '.[] | "| \(.name) | \(.version) | \(.latest_version) |"')
           echo "pkg_list_markdown<<EOF" >> $GITHUB_OUTPUT
           echo "$PKG_MD" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Get current dependencies
-        id: get-current-deps
-        run: |
-          source .venv/bin/activate
-          python <<EOF
-          import tomli
-          with open("pyproject.toml", "rb") as f:
-              pyproject = tomli.load(f)
-          dependencies = pyproject["project"].get("dependencies", [])
-          with open("current_deps.txt", "w") as f:
-              f.write("\n".join(dependencies))
-          EOF
-          echo "current_deps=$(cat current_deps.txt)" >> $GITHUB_OUTPUT
 
       - name: Update pyproject.toml
         id: update-deps
@@ -87,32 +72,30 @@ jobs:
           import json, base64
           import tomli, tomli_w
           from packaging.requirements import Requirement
-          
+
           version_map = json.loads(base64.b64decode("${{ steps.get-versions.outputs.versions_b64 }}"))
-          
+
           with open("pyproject.toml", "rb") as f:
               pyproject = tomli.load(f)
-          
+
           updated_packages = []
           state = {"updated": False}
-          
+
           def process_deps(deps):
               for i, dep in enumerate(deps):
                   try:
                       req = Requirement(dep)
                       spec = next(iter(req.specifier), None)
                       op = spec.operator if spec else None
-          
+
                       pkg_name = req.name.lower()
                       if pkg_name in version_map and version_map[pkg_name]:
                           old_version = spec.version if spec else "?"
                           new_version = version_map[pkg_name]
-                          
-                          # Skip if versions are the same
+
                           if str(old_version) == str(new_version):
                               continue
-                          
-                          # Preserve the original operator if it exists, otherwise use ~=
+
                           new_op = op if op else "~="
                           deps[i] = f"{req.name}{new_op}{new_version}"
                           updated_packages.append({
@@ -121,91 +104,72 @@ jobs:
                               "new": str(new_version)
                           })
                           state["updated"] = True
-          
+
                   except Exception as e:
                       print(f"Skipping invalid requirement {dep}: {e}")
-          
+
           process_deps(pyproject["project"]["dependencies"])
-          
+
           if "optional-dependencies" in pyproject["project"]:
               for group in pyproject["project"]["optional-dependencies"].values():
                   process_deps(group)
-          
+
           if state["updated"]:
               with open("pyproject.toml", "wb") as f:
                   tomli_w.dump(pyproject, f)
-              print("Updated pyproject.toml")
-              
-              # Save updated packages to file
-              with open("updated_packages.json", "w") as f:
-                  json.dump(updated_packages, f)
+              print("::set-output name=updates_made::true")
+              print("::set-output name=updated_packages::" + json.dumps(updated_packages))
           else:
-              print("No version constraints needed updating")
+              print("::set-output name=updates_made::false")
+              print("::set-output name=updated_packages::[]")
           EOF
 
       - name: Get clean diff of changes
         id: get-diff
         run: |
-          # Get clean diff without metadata headers
-          git diff -U0 pyproject.toml | grep '^[+-][^+-]' > pyproject.diff
           echo "diff<<EOF" >> $GITHUB_OUTPUT
-          cat pyproject.diff >> $GITHUB_OUTPUT
+          git diff -U0 pyproject.toml | grep '^[+-][^+-]' >> $GITHUB_OUTPUT || true
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Sync lockfile
+        if: steps.update-deps.outputs.updates_made == 'true'
         run: |
           source .venv/bin/activate
           uv sync --upgrade
           echo "Lockfile updated via uv sync"
 
-      - name: Generate detailed commit message
+      - name: Generate commit message
+        if: steps.update-deps.outputs.updates_made == 'true'
         id: commit-message
         run: |
-          # Load updated packages from file
-          UPDATED_PKGS=$(cat updated_packages.json)
-          ACTUAL_COUNT=$(echo "$UPDATED_PKGS" | jq -r 'length')
-          
-          # Generate markdown table (only if there are updates)
-          if [ "$ACTUAL_COUNT" -gt 0 ]; then
-              TABLE=$(echo "$UPDATED_PKGS" | jq -r '.[] | "| \(.name) | \(.old) | \(.new) |"')
-              DETAILS=$(echo "$UPDATED_PKGS" | jq -r '.[] | "- \(.name): \(.old) → \(.new)"')
-              DIFF=$(cat pyproject.diff || echo "No detailed diff available")
-          else
-              TABLE=""
-              DETAILS="No packages were updated"
-              DIFF=""
-          fi
-          
-          echo "commit_title=chore(deps): update ${ACTUAL_COUNT} packages" >> $GITHUB_OUTPUT
+          COUNT=$(echo '${{ steps.update-deps.outputs.updated_packages }}' | jq length)
+          echo "commit_title=chore(deps): update $COUNT packages" >> $GITHUB_OUTPUT
+          CHANGES=$(echo '${{ steps.update-deps.outputs.updated_packages }}' | jq -r '.[] | "- \(.name) \(.old) → \(.new)"')
           echo "commit_body<<EOF" >> $GITHUB_OUTPUT
-          echo "### 🔄 Batch Dependency Updates" >> $GITHUB_OUTPUT
-          echo "" >> $GITHUB_OUTPUT
-          
-          if [ "$ACTUAL_COUNT" -gt 0 ]; then
-              echo "The following packages were updated:" >> $GITHUB_OUTPUT
-              echo "" >> $GITHUB_OUTPUT
-              echo "| Package | Old Version | New Version |" >> $GITHUB_OUTPUT
-              echo "|---------|-------------|-------------|" >> $GITHUB_OUTPUT
-              echo "$TABLE" >> $GITHUB_OUTPUT
-              echo "" >> $GITHUB_OUTPUT
-              echo "**Detailed changes:**" >> $GITHUB_OUTPUT
-              echo "\`\`\`diff" >> $GITHUB_OUTPUT
-              echo "$DIFF" >> $GITHUB_OUTPUT
-              echo "\`\`\`" >> $GITHUB_OUTPUT
-          else
-              echo "No packages required updating." >> $GITHUB_OUTPUT
-          fi
-          
-          echo "" >> $GITHUB_OUTPUT
-          echo "**Update Process:**" >> $GITHUB_OUTPUT
-          echo "- Checked for outdated dependencies" >> $GITHUB_OUTPUT
-          echo "- Updated version constraints in pyproject.toml" >> $GITHUB_OUTPUT
-          echo "- Synced lockfile with \`uv sync --upgrade\`" >> $GITHUB_OUTPUT
+          echo "$CHANGES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Commit and push changes
+      - name: Create Pull Request
+        if: steps.update-deps.outputs.updates_made == 'true'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          title: "${{ steps.commit-message.outputs.commit_title }}"
+          body: |
+            Automated dependency updates:
+
+            ${{ steps.commit-message.outputs.commit_body }}
+
+            Diff:
+            ```diff
+            ${{ steps.get-diff.outputs.diff }}
+            ```
+          branch: "${{ env.BRANCH_NAME }}"
+          commit-message: "${{ steps.commit-message.outputs.commit_title }}"
+          committer: "AshokShau <114943948+AshokShau@users.noreply.github.com>"
+          author: "AshokShau <114943948+AshokShau@users.noreply.github.com>"
+
+      - name: No updates found
+        if: steps.update-deps.outputs.updates_made == 'false'
         run: |
-          git checkout -b "${BRANCH_NAME}"
-          git add pyproject.toml uv.lock
-          git commit -m "${{ steps.commit-message.outputs.commit_title }}" -m "${{ steps.commit-message.outputs.commit_body }}"
-          git push origin "${BRANCH_NAME}"
+          echo "No dependency updates available at this time."
+    
