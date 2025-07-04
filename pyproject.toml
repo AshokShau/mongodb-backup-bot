@@ -10,9 +10,9 @@ version = "0.1.0"
 description = "A Telegram Bot for MongoDB Backup/Import"
 requires-python = ">=3.10"
 dependencies = [
-    "pytdbot>=0.9.4",
+    "pytdbot>=0.9.5",
     "python-dotenv>=1.1.1",
-    "tdjson>=1.8.50",
+    "tdjson>=1.8.51",
 ]
 
 [project.scripts]
