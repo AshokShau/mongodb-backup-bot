@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  BRANCH_NAME: deps/update-${{ github.run_id }}
+  BRANCH_NAME: deps/batch-updates
 
 jobs:
   batch-update:
@@ -167,9 +167,11 @@ jobs:
           commit-message: "${{ steps.commit-message.outputs.commit_title }}"
           committer: "AshokShau <114943948+AshokShau@users.noreply.github.com>"
           author: "AshokShau <114943948+AshokShau@users.noreply.github.com>"
+          delete-branch: false
+          branch-suffix: ""
+          title-prefix: ""
 
       - name: No updates found
         if: steps.update-deps.outputs.updates_made == 'false'
         run: |
           echo "No dependency updates available at this time."
-    
