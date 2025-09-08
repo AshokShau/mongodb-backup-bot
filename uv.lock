@@ -43,7 +43,7 @@ dependencies = [
 requires-dist = [
     { name = "pytdbot", specifier = ">=0.9.6" },
     { name = "python-dotenv", specifier = ">=1.1.1" },
-    { name = "tdjson", specifier = ">=1.8.52" },
+    { name = "tdjson", specifier = ">=1.8.53" },
 ]
 
 [[package]]
@@ -309,13 +309,13 @@ wheels = [
 
 [[package]]
 name = "tdjson"
-version = "1.8.52"
+version = "1.8.53"
 source = { registry = "https://pypi.org/simple" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/79/ac/059af41dcae7d861122ed895fc24c5aacdf65238b217e529ff55dcb6d661/tdjson-1.8.52-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:3d5e8cfa45e7c2c27d8dcb511597376dcf618f9ba6992ff2ff1c0a7335c9de85", size = 15446776, upload-time = "2025-08-08T12:00:49.544Z" },
-    { url = "https://files.pythonhosted.org/packages/f6/55/2d53dadbe341a72fb5e4103e3d5adafd807ec1d6511e4692c44ff7f3dbba/tdjson-1.8.52-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:3bbcabc0fc3631c89a4b2a90d42ca9b8b5a245c73738830311feba6f614f6f53", size = 15446877, upload-time = "2025-08-08T12:00:52.339Z" },
-    { url = "https://files.pythonhosted.org/packages/09/f4/50a3249b2479cf269ea780cc2f10d6624375b29a7756bf2488553fb1c023/tdjson-1.8.52-cp312-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:404d93f46fc9307f633667d737062e9760218e2ad10eff808e5030fa5f546270", size = 15444587, upload-time = "2025-08-08T12:00:54.363Z" },
-    { url = "https://files.pythonhosted.org/packages/d5/a4/192015ac482b1eac0572008cbbbc46e28822307a8546842f6fc0ba2506b6/tdjson-1.8.52-cp313-cp313t-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:d0fabfc868b0047c948ca924fa39e1c56b9c996255cf7787c36f30afc360c925", size = 15447379, upload-time = "2025-08-08T12:00:56.392Z" },
+    { url = "https://files.pythonhosted.org/packages/98/0e/86c7a27e899b7d99202fc02c8b80224df128bebdc6df9a681dc8d3530c82/tdjson-1.8.53-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:1b6cc640f3f6fb286151d6515e682bc60a436431f9d2ae18da35ef56ce2e6ded", size = 15986148, upload-time = "2025-09-05T23:31:17.283Z" },
+    { url = "https://files.pythonhosted.org/packages/c8/7b/adc043db6b0114893b8852eff4d0dd48014dc2806042c976167633b51cb0/tdjson-1.8.53-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:14f7e2c4cf98ce2362eb79cb1de66f03bddd6c5682188bfc5ee1efd7da7273ba", size = 15986243, upload-time = "2025-09-05T23:31:20.003Z" },
+    { url = "https://files.pythonhosted.org/packages/9f/8e/706195f3e95509787c7d8777894fb7e59d8f6685e3c73d335de7037821b3/tdjson-1.8.53-cp312-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:4ebf8fdcb23be4116296510ce10e7cd5b2439a23e24579ae0770bbd086e50007", size = 15983980, upload-time = "2025-09-05T23:31:22.897Z" },
+    { url = "https://files.pythonhosted.org/packages/a8/50/3916a1b13c505af3e0d52a0a91714fb5c4c186b66646358110f62004cdbe/tdjson-1.8.53-cp313-cp313t-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:a971020aac1142220990112d8fd1144d4257c14c1a4d109cbee30701d21c3df2", size = 15986753, upload-time = "2025-09-05T23:31:25.63Z" },
 ]
 
 [[package]]
