@@ -12,7 +12,7 @@ requires-python = ">=3.10"
 dependencies = [
     "pytdbot>=0.9.8",
     "python-dotenv>=1.2.1",
-    "tdjson>=1.8.56.post2",
+    "tdjson>=1.8.56.post3",
 ]
 
 [project.scripts]
