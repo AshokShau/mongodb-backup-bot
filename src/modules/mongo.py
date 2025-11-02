@@ -20,7 +20,7 @@ def extract_mongo_uri(text: str) -> Optional[str]:
     """Extract MongoDB URI from text."""
     uri_pattern = r"(mongodb(?:\+srv)?:\/\/[a-zA-Z0-9\-._~:\/?#[\]@!$&'()*+,;=]+)"
     match = re.search(uri_pattern, text)
-    return match.group(0) if match else None
+    return match[0] if match else None
 
 @Client.on_message(filters=Filter.command("mongo"))
 async def mongo_cmd(_: Client, msg: types.Message) -> None:
@@ -55,28 +55,44 @@ async def mongo_cmd(_: Client, msg: types.Message) -> None:
         await msg.reply_text("❌ This command can only be used by a user.")
         return None
 
+    db_mapping = {str(i): db for i, db in enumerate(db_list)}
     backup_jobs[job_id] = {
         "uri": uri,
         "flags": flags,
         "chat_id": msg.chat_id,
         "user_id": sender.user_id,
+        "db_mapping": db_mapping,
+        "reverse_mapping": {v: k for k, v in db_mapping.items()}
     }
 
     format_db = "json" if "{json}" in flags and "{gz}" not in flags else "gz"
 
     buttons = [
-        [types.InlineKeyboardButton(text=db, type=types.InlineKeyboardButtonTypeCallback(data=f"backup_{job_id}_{db}_{format_db}".encode()))]
-        for db in db_list
+        [types.InlineKeyboardButton(
+            text=db, 
+            type=types.InlineKeyboardButtonTypeCallback(
+                data=f"backup_{job_id}_{i}_{format_db}".encode()
+            )
+        )]
+        for i, db in db_mapping.items()
     ]
     buttons.append(
         [
             types.InlineKeyboardButton(
-                text="Backup All", type=types.InlineKeyboardButtonTypeCallback(data=f"backup_{job_id}_all_{format_db}".encode()
-            ))
+                text="Backup All", 
+                type=types.InlineKeyboardButtonTypeCallback(
+                    data=f"backup_{job_id}_all_{format_db}".encode()
+                )
+            )
         ]
     )
     buttons.append(
-        [types.InlineKeyboardButton(text="Cancel", type=types.InlineKeyboardButtonTypeCallback(data=f"backup_{job_id}_cancel".encode()))]
+        [types.InlineKeyboardButton(
+            text="Cancel", 
+            type=types.InlineKeyboardButtonTypeCallback(
+                data=f"backup_{job_id}_cancel".encode()
+            )
+        )]
     )
 
     keyboard = types.ReplyMarkupInlineKeyboard(buttons)
@@ -91,13 +107,23 @@ async def on_callback_query(_: Client, cq: types.UpdateNewCallbackQuery) -> None
         return None
 
     parts = data.split("_")
+    if len(parts) < 3 or len(parts) > 4:
+        return await cq.answer("Invalid callback data", show_alert=True)
+
     job_id = parts[1]
-    db_name = parts[2]
+    db_key = parts[2]
     format_db = parts[3] if len(parts) > 3 else ""
 
     job_info = backup_jobs.get(job_id)
     if not job_info or job_info["user_id"] != cq.sender_user_id:
         return await cq.answer("This is not for you!", show_alert=True)
+
+    if db_key in ["all", "cancel"]:
+        db_name = db_key
+    else:
+        db_name = job_info.get("db_mapping", {}).get(db_key)
+        if not db_name:
+            return await cq.answer("Invalid database selection", show_alert=True)
 
     if db_name == "cancel":
         if job_id in backup_jobs:
@@ -186,7 +212,11 @@ async def send_backup_file(
     db_name: Optional[str] = None,
 ) -> Union[types.Message, types.Error]:
     """Send the backup file to the user."""
-    db_info = f"<b>Database:</b> <code>{db_name}</code>\n" if db_name else ""
+    db_info = (
+        f"<b>Database:</b> <code>{db_name}</code>\n"
+        if db_name is not None
+        else "<b>Database:</b> <code>All databases</code>\n"
+    )
     return await msg.reply_document(
         document=types.InputFileLocal(backup_path),
         caption=(
