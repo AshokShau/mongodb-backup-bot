@@ -8,13 +8,19 @@ from pytdbot import types
 from src import BACKUP_FOLDER
 
 
-async def run_mongodump(uri: str, format_db: str = "gz") -> Union[str, types.Error]:
+from typing import Optional
+
+
+async def run_mongodump(
+    uri: str, format_db: str = "gz", db_name: Optional[str] = None
+) -> Union[str, types.Error]:
     """
     Dumps a MongoDB backup in the specified format.
 
     Args:
         uri: MongoDB connection URI.
         format_db: Either 'gz' for archive.gz or 'json' for bson/json folder.
+        db_name: The name of the database to dump.
 
     Returns:
         Path to the backup file or folder, or types.Error on failure.
@@ -23,13 +29,15 @@ async def run_mongodump(uri: str, format_db: str = "gz") -> Union[str, types.Err
     dump_folder = None
     backup_path = None
 
+    db_flag = f"--db={db_name}" if db_name else ""
+
     if format_db == "gz":
         backup_path = f"{BACKUP_FOLDER}/mongo_backup_{timestamp}.gz"
-        command = f"mongodump --uri='{uri}' --archive={backup_path} --gzip"
+        command = f"mongodump --uri='{uri}' {db_flag} --archive={backup_path} --gzip"
 
     elif format_db == "json":
         dump_folder = f"{BACKUP_FOLDER}/mongo_backup_{timestamp}"
-        command = f"mongodump --uri='{uri}' --out={dump_folder}"
+        command = f"mongodump --uri='{uri}' {db_flag} --out={dump_folder}"
     else:
         return types.Error(code=400, message="Invalid format")
 
