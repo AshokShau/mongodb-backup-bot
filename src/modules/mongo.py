@@ -1,7 +1,21 @@
 import os
 import re
 import uuid
-from typing import Optional, Union, Any
+from dataclasses import dataclass
+from typing import Optional, Union, Any, Dict
+
+from pytdbot.exception import StopHandlers
+
+from src.config import DATABASES_PER_PAGE
+
+
+@dataclass
+class CallbackData:
+    action: str
+    job_id: str
+    page: int = 0
+    format_db: str = 'gz'
+    db_index: Optional[str] = None
 
 from pytdbot import Client, types
 from pytdbot.types import Error, Ok
@@ -15,18 +29,32 @@ from src.modules.utils import (
 )
 
 backup_jobs = {}
-DATABASES_PER_PAGE = 7
 
-
-def generate_db_buttons(
-        db_mapping: dict, job_id: str, format_db: str, page: int
+def build_pagination_keyboard(
+        db_mapping: Dict[str, str], job_id: str, format_db: str, page: int = 0
 ) -> types.ReplyMarkupInlineKeyboard:
-    """Generate paginated database buttons."""
+    """Generate a paginated keyboard for database selection.
+    
+    Args:
+        db_mapping: Dictionary mapping database indexes to names
+        job_id: Unique identifier for the backup job
+        format_db: Backup format ('json' or 'gz')
+        page: Current page number (0-based)
+        
+    Returns:
+        ReplyMarkupInlineKeyboard with paginated database buttons
+    """
     total_dbs = len(db_mapping)
-    start_index = page * DATABASES_PER_PAGE
-    end_index = start_index + DATABASES_PER_PAGE
+    if not total_dbs:
+        return types.ReplyMarkupInlineKeyboard([[]])
 
+    max_page = (total_dbs - 1) // DATABASES_PER_PAGE
+    page = max(0, min(page, max_page))
+
+    start_index = page * DATABASES_PER_PAGE
+    end_index = min(start_index + DATABASES_PER_PAGE, total_dbs)
     db_page = list(db_mapping.items())[start_index:end_index]
+
     buttons = [
         [
             types.InlineKeyboardButton(
@@ -38,13 +66,15 @@ def generate_db_buttons(
         ]
         for i, db in db_page
     ]
+    
+
     pagination_buttons = []
     if page > 0:
         pagination_buttons.append(
             types.InlineKeyboardButton(
                 text="< Prev",
                 type=types.InlineKeyboardButtonTypeCallback(
-                    data=f"backup_{job_id}_prev_{page - 1}".encode()
+                    data=f"backup_{job_id}_prev_{page - 1}_{format_db}".encode()
                 ),
             )
         )
@@ -101,10 +131,15 @@ def extract_mongo_uri(text: str) -> Optional[str]:
     return match[0] if match else None
 
 
-@Client.on_message(filters=Filter.command("mongo"))
-async def mongo_cmd(_: Client, msg: types.Message) -> None:
-    """Handle MongoDB backup/restore commands."""
-    args = extract_argument(msg.text)
+async def _handle_mongo_command(_: Client, msg: types.Message, is_regex: bool = False) -> None:
+    """Handle MongoDB backup/restore commands.
+    
+    Args:
+        _: The client instance
+        msg: The message object
+        is_regex: Whether this was triggered by a regex pattern
+    """
+    args = msg.text if is_regex else extract_argument(msg.text)
     if not args:
         await msg.reply_text("❌ Please provide a MongoDB URI.")
         return None
@@ -146,11 +181,25 @@ async def mongo_cmd(_: Client, msg: types.Message) -> None:
 
     format_db = "json" if "{json}" in flags and "{gz}" not in flags else "gz"
 
-    keyboard = generate_db_buttons(
+    keyboard = build_pagination_keyboard(
         db_mapping, job_id, format_db, page=0
     )
     await msg.reply_text("👇 Select a database to back up:", reply_markup=keyboard)
     return None
+
+
+@Client.on_message(filters=Filter.command("mongo"))
+async def mongo_cmd(_: Client, msg: types.Message) -> None:
+    """Handle /mongo command."""
+    await _handle_mongo_command(_, msg, is_regex=False)
+    raise StopHandlers
+
+
+@Client.on_message(filters=Filter.regex(r'^\s*(?:mongo|mongodb)\b'), position=-1)
+async def mongo_regex(_: Client, msg: types.Message) -> None:
+    """Handle messages starting with 'mongo' or 'mongodb'."""
+    await _handle_mongo_command(_, msg, is_regex=True)
+    raise StopHandlers
 
 
 @Client.on_updateNewCallbackQuery()
@@ -160,14 +209,14 @@ async def on_callback_query(_: Client, cq: types.UpdateNewCallbackQuery) -> None
         return None
 
     if data == "noop":
-        return None
+        return await cq.answer("Invalid action !", show_alert=True)
 
     parts = data.split("_")
     job_id = parts[1]
 
     job_info = backup_jobs.get(job_id)
     if not job_info or job_info["user_id"] != cq.sender_user_id:
-        return await cq.answer("This is not for you!", show_alert=True)
+        return await cq.answer("This is not for you or job not found!", show_alert=True)
 
     action = parts[2]
     flags = job_info.get("flags", "")
@@ -175,7 +224,7 @@ async def on_callback_query(_: Client, cq: types.UpdateNewCallbackQuery) -> None
 
     if action in ["next", "prev"]:
         page = int(parts[3])
-        keyboard = generate_db_buttons(
+        keyboard = build_pagination_keyboard(
             job_info["db_mapping"], job_id, format_db, page
         )
         return await cq.edit_message_reply_markup(reply_markup=keyboard)
@@ -186,6 +235,7 @@ async def on_callback_query(_: Client, cq: types.UpdateNewCallbackQuery) -> None
         db_name = job_info.get("db_mapping", {}).get(action)
         if not db_name:
             return await cq.answer("Invalid database selection", show_alert=True)
+
 
     if len(parts) > 3:
         format_db = parts[3]
