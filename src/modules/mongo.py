@@ -54,17 +54,23 @@ def build_pagination_keyboard(
     end_index = min(start_index + DATABASES_PER_PAGE, total_dbs)
     db_page = list(db_mapping.items())[start_index:end_index]
 
-    buttons = [
-        [
+    buttons = []
+    row = []
+    for i, db in db_page:
+        row.append(
             types.InlineKeyboardButton(
                 text=db,
                 type=types.InlineKeyboardButtonTypeCallback(
                     data=f"backup_{job_id}_{i}_{format_db}".encode()
                 ),
             )
-        ]
-        for i, db in db_page
-    ]
+        )
+        if len(row) == 2:
+            buttons.append(row)
+            row = []
+
+    if row:
+        buttons.append(row)
     
 
     pagination_buttons = []
