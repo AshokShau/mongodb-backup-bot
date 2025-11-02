@@ -4,6 +4,16 @@ import uuid
 from dataclasses import dataclass
 from typing import Optional, Union, Any, Dict
 
+from pytdbot import Client, types
+from pytdbot.types import Error, Ok
+
+from src.modules.utils import (
+    Filter,
+    extract_argument,
+    get_db_list,
+    run_mongodump,
+    run_mongorestore,
+)
 from pytdbot.exception import StopHandlers
 
 from src.config import DATABASES_PER_PAGE
@@ -16,17 +26,6 @@ class CallbackData:
     page: int = 0
     format_db: str = 'gz'
     db_index: Optional[str] = None
-
-from pytdbot import Client, types
-from pytdbot.types import Error, Ok
-
-from src.modules.utils import (
-    Filter,
-    extract_argument,
-    get_db_list,
-    run_mongodump,
-    run_mongorestore,
-)
 
 backup_jobs = {}
 
