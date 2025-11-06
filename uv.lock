@@ -43,7 +43,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "pymongo", specifier = ">=4.15.3" },
-    { name = "pytdbot", specifier = ">=0.9.8" },
+    { name = "pytdbot", specifier = ">=0.9.8.post1" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
     { name = "tdjson", specifier = ">=1.8.56.post3" },
 ]
@@ -433,13 +433,13 @@ wheels = [
 
 [[package]]
 name = "pytdbot"
-version = "0.9.8"
+version = "0.9.8.post1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aio-pika" },
     { name = "deepdiff" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/07/94/904a35dfc74f13aa37f206e38bb9733cfa4c18273a05b5fca21d4ba85fea/pytdbot-0.9.8.tar.gz", hash = "sha256:5346f3e17db751b44e26e8658e9145404289bdc723450519677e47d9dd407b8f", size = 493449, upload-time = "2025-10-25T20:59:24.969Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/90/5f/00af139e636867dc5bcb902d7924d036608eefb2689a821462e355023ba6/pytdbot-0.9.8.post1.tar.gz", hash = "sha256:63a0b3b4adf4d0fe0a7f890a447f33794e6996bf559b06dc0c34a59e197344f1", size = 493850, upload-time = "2025-11-05T15:30:22.794Z" }
 
 [[package]]
 name = "python-dotenv"
