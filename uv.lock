@@ -34,6 +34,8 @@ name = "dbbackup"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "humanize" },
+    { name = "meval" },
     { name = "pymongo" },
     { name = "pytdbot" },
     { name = "python-dotenv" },
@@ -42,6 +44,8 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "humanize", specifier = ">=4.14.0" },
+    { name = "meval", specifier = ">=2.5" },
     { name = "pymongo", specifier = ">=4.15.4" },
     { name = "pytdbot", specifier = ">=0.9.8.post1" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
@@ -82,12 +86,30 @@ wheels = [
 ]
 
 [[package]]
+name = "humanize"
+version = "4.14.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/b6/43/50033d25ad96a7f3845f40999b4778f753c3901a11808a584fed7c00d9f5/humanize-4.14.0.tar.gz", hash = "sha256:2fa092705ea640d605c435b1ca82b2866a1b601cdf96f076d70b79a855eba90d", size = 82939, upload-time = "2025-10-15T13:04:51.214Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c3/5b/9512c5fb6c8218332b530f13500c6ff5f3ce3342f35e0dd7be9ac3856fd3/humanize-4.14.0-py3-none-any.whl", hash = "sha256:d57701248d040ad456092820e6fde56c930f17749956ac47f4f655c0c547bfff", size = 132092, upload-time = "2025-10-15T13:04:49.404Z" },
+]
+
+[[package]]
 name = "idna"
 version = "3.11"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/6f/6d/0703ccc57f3a7233505399edb88de3cbd678da106337b9fcde432b65ed60/idna-3.11.tar.gz", hash = "sha256:795dafcc9c04ed0c1fb032c2aa73654d8e8c5023a7df64a53f39190ada629902", size = 194582, upload-time = "2025-10-12T14:55:20.501Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/0e/61/66938bbb5fc52dbdf84594873d5b51fb1f7c7794e9c0f5bd885f30bc507b/idna-3.11-py3-none-any.whl", hash = "sha256:771a87f49d9defaf64091e6e6fe9c18d4833f140bd19464795bc32d966ca37ea", size = 71008, upload-time = "2025-10-12T14:55:18.883Z" },
+]
+
+[[package]]
+name = "meval"
+version = "2.5"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a0/58/2bfffe5a6a1d3d7e9fe2888807a11d220f6cda11af0a41db1170ca9ae6b7/meval-2.5.tar.gz", hash = "sha256:a5aa481617f1fd07a5972076cd3aa14e38515ac84b3ff028efdf76371a856765", size = 2499, upload-time = "2019-11-27T15:36:19.801Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/95/a9/0fab3521980ff8a5cba771cbca2e0bf1c713a57b576fb82cc30f1a095e66/meval-2.5-py3-none-any.whl", hash = "sha256:24430865001b5596864a7c28f423294edadaac57af9ab6964dda3eabc8762577", size = 3584, upload-time = "2019-11-27T15:36:18.473Z" },
 ]
 
 [[package]]
