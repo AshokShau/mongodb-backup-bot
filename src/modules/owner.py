@@ -276,7 +276,6 @@ async def dl_handler(c: Client, msg: types.Message) -> None:
 
     end = time.time()
     duration = end - start
-    local_path = result.path
     downloaded_bytes = result.downloaded_size or 0
 
     size_h = naturalsize(downloaded_bytes, binary=True)
@@ -285,10 +284,10 @@ async def dl_handler(c: Client, msg: types.Message) -> None:
     time_h = f"{duration:.2f}s"
 
     text = (
-        f"Path: {local_path}\n"
         f"Downloaded: {size_h}\n"
         f"Time: {time_h}\n"
         f"Avg Speed: {speed_h}\n"
+        f"Result: {str(result)}\n"
     )
 
     await status.edit_text(text)
