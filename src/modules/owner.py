@@ -269,7 +269,7 @@ async def dl_handler(c: Client, msg: types.Message) -> None:
     status = await msg.reply_text("⏳ Starting download...")
 
     start = time.time()
-    result = await msg.download()
+    result = await reply.download()
     if isinstance(result, types.Error):
         await status.edit_text(f"❌ Download failed: {result.message}")
         return None
