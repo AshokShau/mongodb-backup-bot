@@ -13,6 +13,7 @@ from src.modules.utils import (
     get_db_list,
     run_mongodump,
     run_mongorestore,
+    drop_all_dbs,
 )
 from pytdbot.exception import StopHandlers
 
@@ -27,19 +28,21 @@ class CallbackData:
     format_db: str = 'gz'
     db_index: Optional[str] = None
 
+
 backup_jobs = {}
+
 
 def build_pagination_keyboard(
         db_mapping: Dict[str, str], job_id: str, format_db: str, page: int = 0
 ) -> types.ReplyMarkupInlineKeyboard:
     """Generate a paginated keyboard for database selection.
-    
+
     Args:
         db_mapping: Dictionary mapping database indexes to names
         job_id: Unique identifier for the backup job
         format_db: Backup format ('json' or 'gz')
         page: Current page number (0-based)
-        
+
     Returns:
         ReplyMarkupInlineKeyboard with paginated database buttons
     """
@@ -71,7 +74,6 @@ def build_pagination_keyboard(
 
     if row:
         buttons.append(row)
-    
 
     pagination_buttons = []
     if page > 0:
@@ -118,15 +120,73 @@ def build_pagination_keyboard(
             ],
             [
                 types.InlineKeyboardButton(
-                    text="Cancel",
+                    text="Back to Menu",
                     type=types.InlineKeyboardButtonTypeCallback(
-                        data=f"backup_{job_id}_cancel".encode()
+                        data=f"backup_{job_id}_menuBack".encode()
                     ),
                 )
             ],
         )
     )
     return types.ReplyMarkupInlineKeyboard(buttons)
+
+
+def build_menu_keyboard(job_id: str) -> types.ReplyMarkupInlineKeyboard:
+    """Generate the main menu keyboard."""
+    return types.ReplyMarkupInlineKeyboard([
+        [
+            types.InlineKeyboardButton(
+                text="Backup All",
+                type=types.InlineKeyboardButtonTypeCallback(
+                    data=f"backup_{job_id}_mainAll".encode()
+                )
+            ),
+            types.InlineKeyboardButton(
+                text="Single DB",
+                type=types.InlineKeyboardButtonTypeCallback(
+                    data=f"backup_{job_id}_mainSingle".encode()
+                )
+            )
+        ],
+        [
+            types.InlineKeyboardButton(
+                text="Wipe DB / Delete All",
+                type=types.InlineKeyboardButtonTypeCallback(
+                    data=f"backup_{job_id}_mainDelete".encode()
+                )
+            )
+        ],
+        [
+            types.InlineKeyboardButton(
+                text="Cancel",
+                type=types.InlineKeyboardButtonTypeCallback(
+                    data=f"backup_{job_id}_menuCancel".encode()
+                )
+            )
+        ]
+    ])
+
+
+def build_delete_confirm_keyboard(job_id: str) -> types.ReplyMarkupInlineKeyboard:
+    """Generate confirmation keyboard for deleting all databases."""
+    return types.ReplyMarkupInlineKeyboard([
+        [
+            types.InlineKeyboardButton(
+                text="Yes, Delete Everything",
+                type=types.InlineKeyboardButtonTypeCallback(
+                    data=f"backup_{job_id}_confirmDelete".encode()
+                )
+            )
+        ],
+        [
+            types.InlineKeyboardButton(
+                text="No, Cancel",
+                type=types.InlineKeyboardButtonTypeCallback(
+                    data=f"backup_{job_id}_menuBack".encode()
+                )
+            )
+        ]
+    ])
 
 
 def extract_mongo_uri(text: str) -> Optional[str]:
@@ -138,7 +198,7 @@ def extract_mongo_uri(text: str) -> Optional[str]:
 
 async def _handle_mongo_command(_: Client, msg: types.Message, is_regex: bool = False) -> None:
     """Handle MongoDB backup/restore commands.
-    
+
     Args:
         _: The client instance
         msg: The message object
@@ -159,37 +219,23 @@ async def _handle_mongo_command(_: Client, msg: types.Message, is_regex: bool = 
     if "{import}" in flags:
         return await import_mongo(msg, uri)
 
-    db_list = await get_db_list(uri)
-    if isinstance(db_list, types.Error):
-        await msg.reply_text(f"❌ Could not connect to MongoDB: {db_list.message}")
-        return None
-
-    if not db_list:
-        await msg.reply_text("🤷 No databases found to back up.")
-        return None
-
     job_id = str(uuid.uuid4())
     sender = msg.sender_id
     if not isinstance(sender, types.MessageSenderUser):
         await msg.reply_text("❌ This command can only be used by a user.")
         return None
 
-    db_mapping = {str(i): db for i, db in enumerate(db_list)}
     backup_jobs[job_id] = {
         "uri": uri,
         "flags": flags,
         "chat_id": msg.chat_id,
         "user_id": sender.user_id,
-        "db_mapping": db_mapping,
-        "reverse_mapping": {v: k for k, v in db_mapping.items()}
+        "db_mapping": {},
+        "reverse_mapping": {}
     }
 
-    format_db = "json" if "{json}" in flags and "{gz}" not in flags else "gz"
-
-    keyboard = build_pagination_keyboard(
-        db_mapping, job_id, format_db, page=0
-    )
-    await msg.reply_text("👇 Select a database to back up:", reply_markup=keyboard)
+    keyboard = build_menu_keyboard(job_id)
+    await msg.reply_text("👇 Choose an action:", reply_markup=keyboard)
     return None
 
 
@@ -227,30 +273,77 @@ async def on_callback_query(_: Client, cq: types.UpdateNewCallbackQuery) -> None
     flags = job_info.get("flags", "")
     format_db = "json" if "{json}" in flags and "{gz}" not in flags else "gz"
 
-    if action in ["next", "prev"]:
+    # Handle Menu Actions
+    if action == "mainAll":
+        # Trigger backup all
+        db_name = "all"
+        await cq.edit_message_text(f"📦 Creating backup for <b>All Databases</b>...", parse_mode="html")
+
+    elif action == "mainSingle":
+        db_list = await get_db_list(job_info["uri"])
+        if isinstance(db_list, types.Error):
+            return await cq.answer(f"❌ Could not connect: {db_list.message}", show_alert=True)
+
+        if not db_list:
+            return await cq.answer("🤷 No databases found.", show_alert=True)
+
+        db_mapping = {str(i): db for i, db in enumerate(db_list)}
+        job_info["db_mapping"] = db_mapping
+        job_info["reverse_mapping"] = {v: k for k, v in db_mapping.items()}
+
+        keyboard = build_pagination_keyboard(db_mapping, job_id, format_db, page=0)
+        return await cq.edit_message_text("👇 Select a database to back up:", reply_markup=keyboard)
+
+    elif action == "mainDelete":
+        keyboard = build_delete_confirm_keyboard(job_id)
+        return await cq.edit_message_text(
+            "⚠️ <b>DANGER ZONE</b> ⚠️\n\nAre you sure you want to delete ALL databases? This action cannot be undone!",
+            parse_mode="html", reply_markup=keyboard)
+
+    elif action == "confirmDelete":
+        await cq.edit_message_text("🗑️ Deleting all databases... Please wait.")
+        result = await drop_all_dbs(job_info["uri"])
+        if isinstance(result, types.Error):
+            await cq.edit_message_text(f"❌ Deletion failed: {result.message}")
+        else:
+            await cq.edit_message_text("✅ All databases have been deleted.")
+
+        if job_id in backup_jobs:
+            del backup_jobs[job_id]
+        return None
+
+    elif action == "menuCancel":
+        if job_id in backup_jobs:
+            del backup_jobs[job_id]
+        return await cq.edit_message_text("🚫 Operation canceled.")
+
+    elif action == "menuBack":
+        keyboard = build_menu_keyboard(job_id)
+        return await cq.edit_message_text("👇 Choose an action:", reply_markup=keyboard)
+
+
+    elif action in ["next", "prev"]:
         page = int(parts[3])
         keyboard = build_pagination_keyboard(
             job_info["db_mapping"], job_id, format_db, page
         )
         return await cq.edit_message_reply_markup(reply_markup=keyboard)
 
-    if action in ["all", "cancel"]:
-        db_name = action
+    elif action == "all":
+        db_name = "all"
+        await cq.edit_message_text(f"📦 Creating backup for <b>All Databases</b>...", parse_mode="html")
+
     else:
         db_name = job_info.get("db_mapping", {}).get(action)
         if not db_name:
-            return await cq.answer("Invalid database selection", show_alert=True)
+            if action not in ["mainAll", "all"]:
+                return await cq.answer("Invalid database selection", show_alert=True)
 
+        if action not in ["mainAll", "all"]:
+            await cq.edit_message_text(f"📦 Creating backup for <b>{db_name}</b>...", parse_mode="html")
 
-    if len(parts) > 3:
+    if len(parts) > 3 and action not in ["next", "prev"]:
         format_db = parts[3]
-
-    if db_name == "cancel":
-        if job_id in backup_jobs:
-            del backup_jobs[job_id]
-        return await cq.edit_message_text("🚫 Backup canceled.")
-
-    await cq.edit_message_text(f"📦 Creating backup for <b>{db_name}</b>...", parse_mode="html")
 
     db_to_backup = db_name if db_name != "all" else None
     backup_path = await run_mongodump(
