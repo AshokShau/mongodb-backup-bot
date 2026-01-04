@@ -13,7 +13,7 @@ dependencies = [
     "pymongo>=4.15.5",
     "pytdbot>=0.9.9",
     "python-dotenv>=1.2.1",
-    "tdjson>=1.8.58.post2",
+    "tdjson>=1.8.60",
 ]
 
 [project.scripts]
