@@ -1,0 +1,36 @@
+{
+  "name": "mongodb-backup-bot",
+  "description": "A Telegram bot for MongoDB backups and imports",
+  "repository": "https://github.com/AshokShau/mongodb-backup-bot",
+  "stack": "container",
+  "env": {
+    "API_ID": {
+      "description": "Your Telegram API ID.",
+      "required": true
+    },
+    "API_HASH": {
+      "description": "Your Telegram API hash.",
+      "required": true
+    },
+    "TOKEN": {
+      "description": "Your Telegram bot token.",
+      "required": true
+    },
+    "OWNER_ID": {
+      "description": "The user ID of the bot owner.",
+      "required": false,
+      "value": "5938660179"
+    },
+    "MONGODB_BACKUP_PAGE_SIZE": {
+      "description": "The number of databases to show per page in the bot.",
+      "required": false,
+      "value": "8"
+    }
+  },
+  "formation": {
+    "worker": {
+      "quantity": 1,
+      "size": "basic"
+    }
+  }
+}

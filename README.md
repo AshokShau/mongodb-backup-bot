@@ -49,6 +49,12 @@ A Telegram bot built using [PyTDBot](https://github.com/pytdbot/client) to backu
   </a>
 </p>
 
+## Deployment
+
+<a href="https://heroku.com/deploy?template=https://github.com/AshokShau/mongodb-backup-bot">
+  <img src="https://www.herokucdn.com/deploy/button.svg" alt="Deploy to Heroku">
+</a>
+
 ## Features
 
 - 🔐 Backup MongoDB databases via `/mongo <URI>`
