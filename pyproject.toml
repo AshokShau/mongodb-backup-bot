@@ -12,8 +12,8 @@ requires-python = ">=3.10"
 dependencies = [
     "pymongo>=4.16.0",
     "pytdbot>=0.10.0.dev0",
-    "python-dotenv>=1.2.1",
-    "tdjson>=1.8.62",
+    "python-dotenv>=1.2.2",
+    "tdjson>=1.8.63",
 ]
 
 [project.scripts]
